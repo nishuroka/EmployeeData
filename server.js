@@ -24,29 +24,40 @@ app.post('/', jsonParser, async (request, response) => {
 
     ourPdf.end()
     let folder = await createFolder(request.body.email)
-    let subFolder = await createFolder(moment(new Date(request.body.date)).format('DD-MM-yyyy'), folder.data.id)
-    await saveFile(`${request.body.formName}.pdf`, `./${request.body.formName}.pdf`, 'application/pdf', subFolder.data.id, response)
+    let subFolder = await createFolder(moment(new Date(request.body.date)).format('DD-MM-yyyy'), folder)
+    await saveFile(`${request.body.formName}.pdf`, `./${request.body.formName}.pdf`, 'application/pdf', subFolder, response)
 
 
 })
 
-function createFolder(folderName, parentId) {
-    const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris)
-    client.setCredentials({ refresh_token: refresh_token })
-    let drive = google.drive({ version: 'v3', auth: client })
-    return drive.files.create({
+async function createFolder(folderName, parentId) {
+    return new Promise(async (resolve) => {
+        const existingFolder = await search(folderName)
+        if (existingFolder && existingFolder.id) {
+            resolve(existingFolder.id)
+        } else {
+            const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris)
+            client.setCredentials({ refresh_token: refresh_token })
+            let drive = google.drive({ version: 'v3', auth: client })
+            drive.files.create({
 
-        requestBody: {
-            name: folderName,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents: parentId ? [parentId] : [],
-        },
-        fields: 'id, name',
-    });
+                requestBody: {
+                    name: folderName,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: parentId ? [parentId] : [],
+                },
+                fields: 'id, name',
+            }, function (error, folder) {
+                resolve(folder.data.id)
+            });
+        }
+
+    })
 }
 
 
-function saveFile(fileName, filePath, fileMimeType, folderId, response) {
+async function saveFile(fileName, filePath, fileMimeType, folderId, response) {
+
     const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
     client.setCredentials({ refresh_token: refresh_token });
 
@@ -77,6 +88,31 @@ function saveFile(fileName, filePath, fileMimeType, folderId, response) {
                 "message": "File has been uploaded successfully"
             })
         }
+    });
+}
+function search(name, isFolder = true, mimeType) {
+
+    return new Promise((resolve, reject) => {
+        const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
+        client.setCredentials({ refresh_token: refresh_token });
+
+        drive = google.drive({
+            version: 'v3',
+            auth: client,
+        });
+        drive.files.list(
+            {
+                q: `mimeType='${isFolder ? 'application/vnd.google-apps.folder' : mimeType}' and name='${name}'`,
+                fields: 'files(id, name)',
+            },
+            (err, res) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                return resolve(res.data.files ? res.data.files[0] : null);
+            },
+        );
     });
 }
 
