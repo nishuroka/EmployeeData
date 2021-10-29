@@ -30,23 +30,20 @@ app.post('/', jsonParser, async (request, response) => {
 
 })
 
-function createFolder(folderName, parentId){
+function createFolder(folderName, parentId) {
     const client = new google.auth.OAuth2(client_id, client_secret, redirect_uris)
-        client.setCredentials({ refresh_token: refresh_token })
-        let drive = google.drive({ version: 'v3', auth: client })
+    client.setCredentials({ refresh_token: refresh_token })
+    let drive = google.drive({ version: 'v3', auth: client })
     return drive.files.create({
-    //   resource: {
-    //     name: folderName,
-    //     mimeType: 'application/vnd.google-apps.folder', parent
-    //   },
-    requestBody: {
-                        name: folderName,
-                        mimeType: 'application/vnd.google-apps.folder',
-                        parents: parentId ? [parentId] : [],
-                    },
-      fields: 'id, name',
+
+        requestBody: {
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: parentId ? [parentId] : [],
+        },
+        fields: 'id, name',
     });
-  }
+}
 
 
 function saveFile(fileName, filePath, fileMimeType, folderId, response) {
